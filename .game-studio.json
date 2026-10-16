@@ -1,0 +1,41 @@
+{
+  "template": "web-2d",
+  "version": 6,
+  "name": "公开沙盒",
+  "package": "gs-sandbox-public",
+  "areas": [
+    "玩法",
+    "数值",
+    "界面",
+    "美术",
+    "音频",
+    "工程",
+    "发布"
+  ],
+  "milestone": "迭代 1",
+  "managed": {
+    "tests/unit/docs.test.mjs": "99287c7cbc0d61d7",
+    "tests/unit/layers.test.mjs": "3a40fa30972b8786",
+    "tests/unit/assets.test.mjs": "8c821188c72f30b7",
+    "tests/unit/tuning.test.mjs": "a232aeb6f584a1a0",
+    "tests/unit/setup-github.test.mjs": "9f95b95f9efeb5f3",
+    "tests/e2e/run.mjs": "17f0b849d27ec552",
+    "tools/setup-github.mjs": "176224a143843b57",
+    ".github/ISSUE_TEMPLATE/config.yml": "1f103c6a9dd07cd1",
+    ".github/ISSUE_TEMPLATE/需求.md": "68f92716e5c33727",
+    ".github/ISSUE_TEMPLATE/缺陷.md": "3566745536f22581",
+    ".github/pull_request_template.md": "e70022bb742d7660",
+    ".github/workflows/ci.yml": "29b62208d866f08a",
+    ".github/workflows/agent.yml": "62c4c883752af518",
+    "tools/agent-gate.mjs": "46157b7ec0b4b303",
+    "tests/unit/agent-gate.test.mjs": "2ccb8393743d3e94",
+    "tools/preview.mjs": "926c8dfbcff08d6d",
+    "tests/unit/preview.test.mjs": "d598229d0fe9ef63",
+    ".github/workflows/preview-cleanup.yml": "3abfad114937b152",
+    ".game-studio/plugin/.claude-plugin/plugin.json": "2570c31e24deabe7",
+    ".game-studio/plugin/.claude-plugin/marketplace.json": "c1cd1b31cdad77f7",
+    ".game-studio/plugin/skills/do-issue/SKILL.md": "d7f30fd1e761e4bb",
+    ".game-studio/plugin/skills/plan-issues/SKILL.md": "b9a140aef1823748",
+    ".game-studio/plugin/skills/playtest-review/SKILL.md": "7a58caa2057ece00"
+  }
+}

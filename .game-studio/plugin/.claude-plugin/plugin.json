@@ -1,0 +1,9 @@
+{
+  "name": "game-studio",
+  "version": "0.1.0",
+  "description": "木禾子桐工作台：用对话驱动游戏开发。立项（从模板建仓库）、拆 issue、做 issue（分支、实现、门禁、PR）、里程碑试玩复核。只依赖 gh 与仓库内文件，游戏资产不绑定平台。（随游戏仓库分发的副本，由模板升级更新）",
+  "author": {
+    "name": "muhezitong"
+  },
+  "homepage": "https://github.com/muhezitong/game-studio"
+}

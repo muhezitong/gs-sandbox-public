@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # agent 工作流用 GITHUB_TOKEN 推送不会触发 pull_request，结束后显式派发
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    # 预览要推 gh-pages 与写 PR 评论
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chrome
+      - run: npm run e2e
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-shots
+          path: tests/shots/
+          retention-days: 7
+      # 试玩预览（《系统架构》§4.4）：e2e 通过后发布；来自 fork 的 PR 没有写权限，跳过
+      - name: 预览
+        id: preview
+        if: success() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        run: npm run build && node tools/preview.mjs deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - if: success() && steps.preview.outputs.tier == 'artifact'
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-dist
+          path: dist/
+          retention-days: 7
