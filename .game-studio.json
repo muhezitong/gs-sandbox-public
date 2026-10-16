@@ -49,5 +49,8 @@
     ".game-studio/plugin/skills/do-issue/SKILL.md": "443479ca1fa8f478",
     ".game-studio/plugin/skills/plan-issues/SKILL.md": "b9a140aef1823748",
     ".game-studio/plugin/skills/playtest-review/SKILL.md": "7a58caa2057ece00"
+  },
+  "features": {
+    "lorebook": true
   }
 }
