@@ -16,7 +16,7 @@ export function drawFrame(ctx, state, title) {
   ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
   if (state.phase === 'title') {
     text(ctx, title, DESIGN_W / 2, DESIGN_H * 0.4, 40);
-    text(ctx, '点击开始', DESIGN_W / 2, DESIGN_H * 0.6, 20, '#9fb3a6');
+    text(ctx, '点一下开始', DESIGN_W / 2, DESIGN_H * 0.6, 20, '#9fb3a6');
     return;
   }
   text(ctx, `得分 ${state.score}`, DESIGN_W / 2, 60, 22);
