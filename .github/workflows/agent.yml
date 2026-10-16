@@ -59,6 +59,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chrome
+      # 图片格式转换（资产工具在服务返回格式不符时用；没有就改扩展名保存）
+      - run: sudo apt-get install -y -qq webp >/dev/null || true
       - name: 准备
         # 用户写的指令只落到文件，不拼进脚本和提示词
         run: |
@@ -126,3 +128,15 @@ jobs:
         # GITHUB_TOKEN 推送不会触发其它工作流；显式派发让 agent 的 PR 跑门禁与预览（《系统架构》§4.3）
         if: always() && env.AGENT_BRANCH != ''
         run: gh workflow run ci.yml --ref "$AGENT_BRANCH" && echo "已派发 CI：$AGENT_BRANCH"
+      - name: 清理空的 pull_request 运行
+        # bot 开 / 推的 PR 会生成一次不跑任何 job 的 pull_request 运行，在 PR 上显示为失败（game-studio#64）；
+        # 门禁以上一步派发的 CI 为准，这里把这些空运行删掉。只删本分支、bot 触发、0 个 job 的
+        if: always() && env.AGENT_BRANCH != ''
+        run: |
+          for pass in 1 2 3; do
+            sleep 10
+            for id in $(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=pull_request&branch=$AGENT_BRANCH&per_page=50" --jq '.workflow_runs[] | select(.triggering_actor.login == "github-actions[bot]") | .id'); do
+              jobs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" --jq '.total_count')
+              if [ "$jobs" = 0 ]; then gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/runs/$id" && echo "已删除空运行 $id"; fi
+            done
+          done

@@ -47,7 +47,7 @@ gh issue list --milestone "<里程碑>" --state all --json number,title,state
 
 用 `plan-issues` 的规则把问题拆成 issue（下一个里程碑或当前里程碑），在文档 §4 填上编号。按 `do-issue` 的流程提交复核文档 PR，正文 `Closes #<复核 issue>`。
 
-复核 PR 里同时把《迭代计划》§1 本迭代的状态改为“已完成”。PR 合并后关闭 GitHub 里程碑：
+复核 PR 里同时把《迭代计划》§1 本迭代的状态改为“已完成”。PR 合并后，仓库的 `milestone-close` 工作流会在里程碑没有 open issue 时自动关闭它；本地手动收尾或工作流没跑时：
 
 ```bash
 gh api -X PATCH "repos/{owner}/{repo}/milestones/<编号>" -f state=closed

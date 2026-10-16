@@ -1,6 +1,6 @@
 {
   "template": "web-3d",
-  "version": 13,
+  "version": 17,
   "name": "公开沙盒3D",
   "package": "gs-sandbox-public",
   "areas": [
@@ -27,7 +27,7 @@
     ".github/ISSUE_TEMPLATE/缺陷.md": "3566745536f22581",
     ".github/pull_request_template.md": "e70022bb742d7660",
     ".github/workflows/ci.yml": "29b62208d866f08a",
-    ".github/workflows/agent.yml": "be15b2a30ea57f0a",
+    ".github/workflows/agent.yml": "575260cf478bb7b6",
     "tools/agent-gate.mjs": "40f9c9670110d7a6",
     "tests/unit/agent-gate.test.mjs": "2ccb8393743d3e94",
     "tools/preview.mjs": "8894aa2305bccd2d",
@@ -36,19 +36,22 @@
     "tools/agent-cost.mjs": "a0bd84f200bea537",
     "tests/unit/agent-cost.test.mjs": "29971650d0e13dc5",
     "tools/asset-lib.mjs": "8d74543cc12bf8ff",
-    "tools/asset-image.mjs": "12cd25b63985dcac",
+    "tools/asset-image.mjs": "6e8fb42adfd6ec5e",
     "tools/asset.mjs": "2f9c6c4c3e68203c",
     "tools/asset-mcp.mjs": "c72fe698fb2a5388",
-    "tests/unit/asset-image.test.mjs": "f0e1ebf73a0d6956",
+    "tests/unit/asset-image.test.mjs": "80affd420a018523",
     ".game-studio/mcp.json": "ebef45cddb622b02",
-    "tools/asset-model.mjs": "e93d6595cfdc6408",
-    "tests/unit/asset-model.test.mjs": "3bb35ea82feecf38",
+    "tools/asset-model.mjs": "ab3290c169259e85",
+    "tests/unit/asset-model.test.mjs": "e6f7324f192f1fd6",
     "tools/lorebook.mjs": "e795c40c3337f465",
     "tests/unit/lorebook.test.mjs": "cb625c6c5ee98642",
+    "tools/milestone-close.mjs": "7460c060493b7e8f",
+    ".github/workflows/milestone-close.yml": "16299fc4d47ea868",
+    "tests/unit/milestone-close.test.mjs": "2c8e6ce57c2b9c96",
     ".game-studio/plugin/.claude-plugin/plugin.json": "2570c31e24deabe7",
     ".game-studio/plugin/.claude-plugin/marketplace.json": "c1cd1b31cdad77f7",
     ".game-studio/plugin/skills/do-issue/SKILL.md": "443479ca1fa8f478",
     ".game-studio/plugin/skills/plan-issues/SKILL.md": "b9a140aef1823748",
-    ".game-studio/plugin/skills/playtest-review/SKILL.md": "7a58caa2057ece00"
+    ".game-studio/plugin/skills/playtest-review/SKILL.md": "3751692a4485a0aa"
   }
 }

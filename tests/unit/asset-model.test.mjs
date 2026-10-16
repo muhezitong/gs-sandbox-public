@@ -128,3 +128,11 @@ test('连不上服务时提示网络与区域，而不是笼统的 fetch failed'
     await assert.rejects(generateModel(base, { root, env, fetch: down, sleep: noSleep }), /连不上 https:\/\/openapi\.tripo3d\.ai（UND_ERR_CONNECT_TIMEOUT）.*TRIPO_BASE_URL/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('空字符串的环境变量当作未设置（Actions 里没设的 vars 会注入成空串）', () => {
+  const root = sandbox();
+  try {
+    assert.equal(buildModelRequest(base, { root, env: { ...env, TRIPO_BASE_URL: '', TRIPO_MODEL: '' } }).endpoint, 'https://openapi.tripo3d.ai/v3/generation/image-to-model');
+    assert.equal(tripoModel({}, { TRIPO_MODEL: '' }), 'P2-20260801');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

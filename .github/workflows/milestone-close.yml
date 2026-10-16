@@ -1,0 +1,26 @@
+# 里程碑收尾：PR 合并后，里程碑没有 open issue 了就自动关闭（tools/milestone-close.mjs）。
+# agent 不合并 PR，合并由用户触发，所以这一步不能放在 agent 工作流里。
+name: milestone-close
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  # 显式写了 permissions 就只剩这些；私有仓库检出代码需要 contents: read
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  close:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node tools/milestone-close.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}

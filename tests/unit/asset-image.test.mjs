@@ -141,3 +141,12 @@ test('格式：按文件头识别；服务返回格式不符时转换，转不�
     assert.match(big.warnings.at(-1), /超过 0 KB/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('空字符串的网关与模型当作未设置', () => {
+  const root = sandbox();
+  try {
+    const r = buildImageRequest(base, { root, env: { OPENAI_API_KEY: 'k', OPENAI_BASE_URL: '', IMAGE_MODEL: '' } });
+    assert.equal(r.endpoint, 'https://api.openai.com/v1/images/generations');
+    assert.equal(r.params.model, 'gpt-image-2.5-sunburst');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

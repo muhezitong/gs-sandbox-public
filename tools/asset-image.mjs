@@ -9,7 +9,7 @@ const QUALITIES = ['low', 'medium', 'high', 'auto'];
 const BACKGROUNDS = ['transparent', 'opaque', 'auto'];
 const MIME = { png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
 
-export const imageModel = (opts, env) => opts.model ?? env.IMAGE_MODEL ?? env.OPENAI_IMAGE_MODEL ?? 'gpt-image-2.5-sunburst';
+export const imageModel = (opts, env) => opts.model || env.IMAGE_MODEL || env.OPENAI_IMAGE_MODEL || 'gpt-image-2.5-sunburst';
 
 // 只做校验与组装，不发请求；dry-run 与单测直接用
 export function buildImageRequest(opts, { root, env }) {
@@ -28,7 +28,8 @@ export function buildImageRequest(opts, { root, env }) {
     if (/^gpt-image-2/.test(model)) throw new AssetError('bad_args', `${model} 不支持透明背景；透明抠图请加 --model gpt-image-1.5（换模型需用户同意）`);
   }
   const format = ext === 'jpg' ? 'jpeg' : ext;
-  const base = (env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1').replace(/\/$/, '');
+  // 空字符串当未设置：Actions 里没设的 secrets / vars 注入成空串
+  const base = (env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
   const refs = opts.ref ?? [];
   const params = { model, prompt: opts.prompt, size, quality, output_format: format, n: 1, ...(background !== 'auto' ? { background } : {}) };
   const maxKb = Number(opts['max-kb'] ?? 1024);

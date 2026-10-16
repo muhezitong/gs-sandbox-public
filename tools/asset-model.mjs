@@ -9,7 +9,7 @@ export const MODEL_ALIASES = { 'tripo-p2': 'P2-20260801', p2: 'P2-20260801', P2:
 export const FAILED = ['failed', 'cancelled', 'banned', 'expired'];
 const MIME = { png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
 
-export const tripoModel = (opts, env) => { const m = opts.model ?? env.TRIPO_MODEL ?? 'tripo-p2'; return MODEL_ALIASES[m] ?? m; };
+export const tripoModel = (opts, env) => { const m = opts.model || env.TRIPO_MODEL || 'tripo-p2'; return MODEL_ALIASES[m] ?? m; };
 
 // GLB：12 字节头 + JSON 块；三角面数 = 各 primitive 的 indices（没有就用 POSITION）计数 / 3
 export function glbStats(bytes) {
@@ -43,7 +43,8 @@ export function buildModelRequest(opts, { root, env }) {
   const { rel } = checkOut(root, opts.out, MODEL_EXTS, opts.force);
   if (opts.image && !MIME[extname(opts.image).slice(1).toLowerCase()]) throw new AssetError('bad_args', `参考图格式不支持：${opts.image}`);
   const model = tripoModel(opts, env);
-  const base = (env.TRIPO_BASE_URL ?? 'https://openapi.tripo3d.ai').replace(/\/$/, '');
+  // 空字符串当未设置：Actions 里没设的 secrets / vars 注入成空串
+  const base = (env.TRIPO_BASE_URL || 'https://openapi.tripo3d.ai').replace(/\/$/, '');
   const params = { model, ...(opts.prompt ? { prompt: opts.prompt } : {}), ...(opts.seed ? { model_seed: Number(opts.seed) } : {}) };
   return {
     rel, model, base, params, image: opts.image ?? null,
