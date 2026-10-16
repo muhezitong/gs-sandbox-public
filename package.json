@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "test": "node --test tests/unit/*.test.mjs",
     "e2e": "node tests/e2e/run.mjs",
-    "setup:github": "node tools/setup-github.mjs"
+    "setup:github": "node tools/setup-github.mjs",
+    "asset": "node tools/asset.mjs",
+    "lorebook": "node tools/lorebook.mjs"
   },
   "license": "UNLICENSED",
   "devDependencies": {

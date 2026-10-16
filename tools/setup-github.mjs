@@ -4,6 +4,9 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { realpathSync } from 'node:fs';
+// 是否被直接运行：比较真实路径（macOS 上 /var 是 /private/var 的符号链接，直接比字符串会误判）
+const isMain = (url) => { try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(url)); } catch { return false; } };
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const args = process.argv.slice(2);
@@ -55,7 +58,7 @@ export function labels(areas) {
   ];
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   const gh = (...a) => (dryRun ? (console.log('gh', a.join(' ')), '[]') : execFileSync('gh', a, { encoding: 'utf8' }));
   const repo = args.find((a) => !a.startsWith('--')) ?? JSON.parse(gh('repo', 'view', '--json', 'nameWithOwner') || '{}').nameWithOwner;
   if (!repo) { console.error('用法：npm run setup:github -- <owner/repo>'); process.exit(1); }

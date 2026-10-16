@@ -38,3 +38,8 @@ test('发布 gh-pages 时写 .nojekyll（否则 _shots/ 不发布）；开启 Pa
   assert.match(src, /'\.nojekyll'/);
   assert.match(src, /'--input', '-'\], \{ input: JSON\.stringify\(\{ source: \{ branch: 'gh-pages'/);
 });
+
+test('启用设定集时评论附设定集链接', () => {
+  const b = commentBody({ tier: 'pages', url: 'https://o.github.io/r/pr-1/', sha: 'abcdef1', runUrl: 'u', repo: 'o/r', lorebook: true });
+  assert.match(b, /\[设定集\]\(https:\/\/o\.github\.io\/r\/pr-1\/lorebook\/\)/);
+});

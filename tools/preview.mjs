@@ -6,6 +6,9 @@ import { existsSync, readdirSync, readFileSync, writeFileSync, appendFileSync, m
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { realpathSync } from 'node:fs';
+// 是否被直接运行：比较真实路径（macOS 上 /var 是 /private/var 的符号链接，直接比字符串会误判）
+const isMain = (url) => { try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(url)); } catch { return false; } };
 
 export const MARK = '<!-- game-studio:preview -->';
 
@@ -25,9 +28,10 @@ export function pagesUrl(repo, path) {
 }
 
 // 评论正文：url 为 null 表示没有可试玩地址
-export function commentBody({ tier, url, sha, shots = [], runUrl, repo }) {
+export function commentBody({ tier, url, sha, shots = [], runUrl, repo, lorebook = false }) {
   const lines = [MARK, `### 🎮 试玩预览`, ''];
   if (url) lines.push(`**[打开试玩](${url})**（${{ cloudflare: 'Cloudflare Pages', pages: 'GitHub Pages' }[tier]}，提交 \`${sha.slice(0, 7)}\`）`);
+  if (url && lorebook) lines.push(`[设定集](${url}lorebook/)`);
   else lines.push(`这个仓库还没有可直接打开的试玩地址。构建产物在[本次运行](${runUrl})的 Artifacts 里（\`preview-dist\`，下载后用本地静态服务器打开）。`, '', `开启可试玩预览：在仓库 Secrets 设置 \`CLOUDFLARE_API_TOKEN\`（Cloudflare Pages 编辑权限）与 \`CLOUDFLARE_ACCOUNT_ID\`，或把仓库设为公开以使用 GitHub Pages。`);
   if (shots.length) lines.push('', '| ' + shots.map((s) => s.name).join(' | ') + ' |', '|' + shots.map(() => '---').join('|') + '|', '| ' + shots.map((s) => `<img src="${s.url}" width="180">`).join(' | ') + ' |');
   else lines.push('', `e2e 截图在[本次运行](${runUrl})的 Artifacts 里（\`e2e-shots\`）。`);
@@ -87,7 +91,7 @@ function ensurePagesSite(repo) {
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   const cmd = process.argv[2];
   const repo = process.env.GITHUB_REPOSITORY;
   const sha = process.env.GITHUB_SHA ?? '';
@@ -131,5 +135,5 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   out('url', url ?? '');
   console.log(`预览：${tier} ${url ?? '（无地址）'}`);
-  if (pr) upsertComment(repo, pr, commentBody({ tier, url, sha, shots, runUrl, repo }));
+  if (pr) upsertComment(repo, pr, commentBody({ tier, url, sha, shots, runUrl, repo, lorebook: existsSync('dist/lorebook/index.html') }));
 }

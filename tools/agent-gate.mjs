@@ -4,6 +4,10 @@
 import { readFileSync, existsSync, appendFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { fromComments, mergeCosts } from './agent-cost.mjs';
+import { realpathSync } from 'node:fs';
+// 是否被直接运行：比较真实路径（macOS 上 /var 是 /private/var 的符号链接，直接比字符串会误判）
+const isMain = (url) => { try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(url)); } catch { return false; } };
 
 export const GO_LABEL = 'agent:go';
 const WRITERS = ['OWNER', 'MEMBER', 'COLLABORATOR'];
@@ -53,7 +57,7 @@ export function decide(event, name) {
   return { skip: `不处理 ${name} 事件` };
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
   const repo = process.env.GITHUB_REPOSITORY;
   const gh = (...a) => execFileSync('gh', a, { encoding: 'utf8' }).trim();
@@ -78,8 +82,14 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (open.length) { block(d.target, `依赖未关闭：${open.map((n) => `#${n}`).join('、')}。先完成依赖再打 \`${GO_LABEL}\`。`); process.exit(0); }
   }
   const budget = existsSync('.game-studio/budget.json') ? JSON.parse(readFileSync('.game-studio/budget.json', 'utf8')) : null;
-  const costs = existsSync('.game-studio/costs.jsonl') ? readFileSync('.game-studio/costs.jsonl', 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
-  const milestone = event.issue.milestone?.title;
+  const ledger = existsSync('.game-studio/costs.jsonl') ? readFileSync('.game-studio/costs.jsonl', 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
+  // 还没合并的运行只在评论里：取仓库最近的评论里的成本标记一起算
+  const recent = JSON.parse(gh('api', `repos/${repo}/issues/comments?per_page=100&sort=created&direction=desc`)).map((c) => c.body);
+  const costs = mergeCosts(ledger, fromComments(recent));
+  // PR 一般没有里程碑：返工的成本记到 PR 正文 Closes #N 那个 issue 的里程碑
+  let milestone = event.issue.milestone?.title;
+  const closes = !milestone && event.issue.pull_request && (event.issue.body ?? '').match(/^(?:Closes|Fixes|Resolves) #(\d+)/im);
+  if (closes) milestone = gh('api', `repos/${repo}/issues/${closes[1]}`, '--jq', '.milestone.title // ""') || undefined;
   const over = milestone && overBudget(budget, costs, milestone);
   if (over) { block(d.target, `里程碑「${milestone}」已花费 $${over.spent.toFixed(2)}，达到预算 $${over.cap}。调整 \`.game-studio/budget.json\` 后重试。`); process.exit(0); }
 
@@ -88,5 +98,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   out('target', String(d.target));
   out('instruction', d.instruction);
   out('per_run_budget', String(budget?.perRun ?? 5));
+  out('milestone', milestone ?? '');
   console.log(`ok: ${d.mode} #${d.target}`);
 }

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "game-studio-assets": {
+      "command": "node",
+      "args": ["tools/asset-mcp.mjs"]
+    }
+  }
+}

@@ -47,6 +47,14 @@ gh pr create -t "<标题>" -F <正文文件>
 gh pr checks --watch
 ```
 
-## 6. 合并
+## 6. 返工
+
+用户在 PR 下提意见（或 Actions 里收到 `/agent 再改改：…`）时，不开新 PR：
+
+- `git switch <PR 分支> && git pull`，按意见改；意见涉及数值或规则时同样先改《游戏方向》。
+- 重跑第 4 步门禁，推到同一分支。
+- 在 PR 下评论：改了什么、对应意见的哪一条、还有哪些没改及原因。
+
+## 7. 合并
 
 默认**不合并**，报告 PR 链接、CI 结果和截图，等用户确认。只有用户在本次对话里明确要求，或仓库 `CLAUDE.md`“项目特有约定”里有合并授权（授权人、日期、范围，例如“CI 全绿后由 agent 自行合并”）时，才 `gh pr merge --squash --delete-branch`，之后 `git switch main && git pull`。授权只按写明的范围执行。

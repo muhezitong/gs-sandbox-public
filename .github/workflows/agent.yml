@@ -24,6 +24,7 @@ jobs:
       target: ${{ steps.gate.outputs.target }}
       instruction: ${{ steps.gate.outputs.instruction }}
       per_run_budget: ${{ steps.gate.outputs.per_run_budget }}
+      milestone: ${{ steps.gate.outputs.milestone }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -47,6 +48,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       MODE: ${{ needs.gate.outputs.mode }}
       TARGET: ${{ needs.gate.outputs.target }}
+      MILESTONE: ${{ needs.gate.outputs.milestone }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -64,6 +66,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           mkdir -p .game-studio/run
           printf '%s\n' "$INSTRUCTION" > .game-studio/run/instruction.md
+          cp assets/README.md .game-studio/run/assets-before.md 2>/dev/null || true
         env:
           INSTRUCTION: ${{ needs.gate.outputs.instruction }}
       - id: claude
@@ -90,15 +93,24 @@ jobs:
             - 门禁（npm test、npm run build、npm run e2e）失败要修到通过；修不了就停下，在 #${{ needs.gate.outputs.target }} 下评论原因。
             - 不提交 .game-studio/run/。
             - gh pr create 因仓库或组织不允许 Actions 创建 PR 而失败时：分支照常推送，在 #${{ needs.gate.outputs.target }} 下评论开 PR 的链接（${{ github.server_url }}/${{ github.repository }}/compare/main...<分支>?expand=1）和你准备好的 PR 标题与正文，请用户点开创建。
-      - name: 派发 CI
-        # GITHUB_TOKEN 推送不会触发其它工作流；显式派发让 agent 的 PR 跑门禁与预览（《系统架构》§4.3）
-        if: always() && (env.MODE == 'do' || env.MODE == 'rework')
-        run: |
-          if [ "$MODE" = rework ]; then br=$(gh pr view "$TARGET" --json headRefName --jq .headRefName); else br=$(git ls-remote --heads origin "refs/heads/$TARGET-*" | head -1 | sed 's#.*refs/heads/##'); fi
-          if [ -n "$br" ]; then gh workflow run ci.yml --ref "$br" && echo "已派发 CI：$br"; else echo "没有找到 agent 的分支"; fi
-      - name: 报告
+      - name: 记录成本
+        # 记录写进 issue 评论（隐藏标记，预算检查会读）；有 agent 分支时同时追加到分支的 .game-studio/costs.jsonl
         if: always()
         run: |
-          f="${{ steps.claude.outputs.execution_file }}"
-          if [ -f "$f" ]; then line=$(node -e 'const m=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).find(x=>x.type==="result")||{};console.log(`费用约 $${(m.total_cost_usd??0).toFixed(2)}，${m.num_turns??"?"} 轮，${m.is_error?"出错":"完成"}`)' "$f"); else line="没有拿到运行结果"; fi
-          gh issue comment "$TARGET" -b "🤖 agent（$MODE）：$line。[运行日志]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
+          br=""
+          if [ "$MODE" = rework ]; then br=$(gh pr view "$TARGET" --json headRefName --jq .headRefName); elif [ "$MODE" = do ]; then br=$(git ls-remote --heads origin "refs/heads/$TARGET-*" | head -1 | sed 's#.*refs/heads/##'); fi
+          if [ -n "$br" ]; then git fetch -q origin "$br" && git checkout -q -B "$br" "origin/$br"; fi
+          [ "$MODE" = rework ] && gh api "repos/$GITHUB_REPOSITORY/issues/$TARGET/comments?per_page=100" --jq '[.[].body]' > .game-studio/run/pr-comments.json
+          rec=$(ASSETS_BEFORE=.game-studio/run/assets-before.md PR_COMMENTS_FILE=.game-studio/run/pr-comments.json node tools/agent-cost.mjs "$EXEC_FILE")
+          gh issue comment "$TARGET" -b "$(node -e 'import("./tools/agent-cost.mjs").then(m=>console.log(m.costComment(JSON.parse(process.argv[1]),process.argv[2])))' "$rec" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID")"
+          if [ -n "$br" ]; then
+            mkdir -p .game-studio && printf '%s\n' "$rec" >> .game-studio/costs.jsonl
+            git add .game-studio/costs.jsonl && git commit -q -m "Record agent run cost" -m "Refs #$TARGET" && git push -q origin "HEAD:$br"
+          fi
+          echo "AGENT_BRANCH=$br" >> "$GITHUB_ENV"
+        env:
+          EXEC_FILE: ${{ steps.claude.outputs.execution_file }}
+      - name: 派发 CI
+        # GITHUB_TOKEN 推送不会触发其它工作流；显式派发让 agent 的 PR 跑门禁与预览（《系统架构》§4.3）
+        if: always() && env.AGENT_BRANCH != ''
+        run: gh workflow run ci.yml --ref "$AGENT_BRANCH" && echo "已派发 CI：$AGENT_BRANCH"
