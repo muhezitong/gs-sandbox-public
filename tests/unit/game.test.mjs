@@ -47,3 +47,20 @@ test('同一种子复现同一串木箱位置', () => {
   const run = () => { const g = createGame({ seed: 9 }); g.start(); const out = []; for (let i = 0; i < 5; i++) { out.push({ ...g.state.crate }); Object.assign(g.state.player, g.state.crate); g.update(0.01); } return out; };
   assert.deepEqual(run(), run());
 });
+
+test('最快间隔：取相邻两次拾取的最短用时，不足两次为 null，重开清零', () => {
+  const g = createGame({ seed: 7 });
+  g.start();
+  const pick = (wait) => { g.update(wait); Object.assign(g.state.player, g.state.crate); assert.equal(g.update(0.01), true); };
+  pick(1);
+  assert.equal(g.state.bestInterval, null);
+  pick(2);
+  assert.ok(Math.abs(g.state.bestInterval - 2.01) < 1e-9);
+  pick(0.5);
+  assert.ok(Math.abs(g.state.bestInterval - 0.51) < 1e-9);
+  pick(3);
+  assert.ok(Math.abs(g.state.bestInterval - 0.51) < 1e-9);
+  g.start();
+  assert.equal(g.state.bestInterval, null);
+  assert.equal(g.state.lastPickupAt, null);
+});

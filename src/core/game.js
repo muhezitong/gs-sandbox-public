@@ -6,7 +6,7 @@ import { TUNING } from '../data/tuning.js';
 export function createGame({ seed = 1, tuning = TUNING } = {}) {
   const rng = createRng(seed);
   const half = tuning.arenaSize / 2;
-  const game = { phase: 'title', score: 0, timeLeft: tuning.roundSeconds, player: { x: 0, z: 0 }, crate: null, seed };
+  const game = { phase: 'title', score: 0, timeLeft: tuning.roundSeconds, player: { x: 0, z: 0 }, crate: null, lastPickupAt: null, bestInterval: null, seed };
 
   // 木箱随机放在平台内，离边缘 edgeMargin，且不贴着玩家
   function spawn() {
@@ -21,7 +21,7 @@ export function createGame({ seed = 1, tuning = TUNING } = {}) {
   return {
     state: game,
     start() {
-      Object.assign(game, { phase: 'play', score: 0, timeLeft: tuning.roundSeconds, player: { x: 0, z: 0 } });
+      Object.assign(game, { phase: 'play', score: 0, timeLeft: tuning.roundSeconds, player: { x: 0, z: 0 }, lastPickupAt: null, bestInterval: null });
       spawn();
     },
     // input：{ x, z }，各分量 -1..1；返回本帧是否拾取
@@ -37,6 +37,13 @@ export function createGame({ seed = 1, tuning = TUNING } = {}) {
       if (game.timeLeft === 0) { game.phase = 'over'; return false; }
       if (Math.hypot(game.player.x - game.crate.x, game.player.z - game.crate.z) <= tuning.pickupRadius) {
         game.score++;
+        // 最快间隔：两次拾取之间的最短用时（局内已过秒数之差），不足两次为 null
+        const at = tuning.roundSeconds - game.timeLeft;
+        if (game.lastPickupAt !== null) {
+          const gap = at - game.lastPickupAt;
+          if (game.bestInterval === null || gap < game.bestInterval) game.bestInterval = gap;
+        }
+        game.lastPickupAt = at;
         spawn();
         return true;
       }
