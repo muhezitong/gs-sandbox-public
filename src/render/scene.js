@@ -1,8 +1,8 @@
 // three 场景：平台、玩家、木箱、相机、灯光。只读规则状态。
 import * as THREE from 'three';
-import { loadModel, crateFallback } from './models.js';
+import { loadModel, crateFallback, capsuleFallback } from './models.js';
 
-export async function createScene(canvas, { arenaSize, modelUrl }) {
+export async function createScene(canvas, { arenaSize, modelUrl, playerUrl }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
@@ -28,19 +28,27 @@ export async function createScene(canvas, { arenaSize, modelUrl }) {
   grid.position.y = 0.01;
   scene.add(grid);
 
-  const player = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.6, 4, 12), new THREE.MeshStandardMaterial({ color: 0xe0a458, roughness: 0.5 }));
-  player.castShadow = true;
-  scene.add(player);
-
-  const crate = await loadModel(modelUrl, { size: 0.9, fallback: crateFallback });
-  scene.add(crate.object);
+  // 玩家：小木匠 GLB，高约 1.3；缺失时回退到胶囊体
+  const [hero, crate] = await Promise.all([
+    loadModel(playerUrl, { size: 1.3, fallback: capsuleFallback }),
+    loadModel(modelUrl, { size: 0.9, fallback: crateFallback }),
+  ]);
+  const player = hero.object;
+  scene.add(player, crate.object);
+  let px = 0, pz = 0;
 
   return {
     modelSource: crate.source,
     modelError: crate.error,
+    playerSource: hero.source,
+    playerError: hero.error,
     resize(w, h) { renderer.setSize(w, h, true); camera.aspect = w / h; camera.updateProjectionMatrix(); },
     render(state, t) {
-      player.position.set(state.player.x, 0.65, state.player.z);
+      // 朝移动方向转身（模型正面朝 +z）
+      const dx = state.player.x - px, dz = state.player.z - pz;
+      if (dx * dx + dz * dz > 1e-6) player.rotation.y = Math.atan2(dx, dz);
+      px = state.player.x; pz = state.player.z;
+      player.position.set(px, 0, pz);
       crate.object.visible = !!state.crate && state.phase !== 'title';
       if (state.crate) { crate.object.position.set(state.crate.x, 0, state.crate.z); crate.object.rotation.y = t * 0.8; }
       renderer.render(scene, camera);

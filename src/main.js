@@ -8,9 +8,10 @@ const TITLE = '公开沙盒3D';
 const platform = createPlatform();
 const seed = Number(platform.query.get('seed') ?? (Date.now() & 0xffff));
 const game = createGame({ seed });
-// 模型地址可用 ?model= 覆盖（e2e 用它验证缺资产时的回退）
+// 模型地址可用 ?model= / ?player= 覆盖（e2e 用它验证缺资产时的回退）
 const modelUrl = platform.query.get('model') ?? 'models/crate.glb';
-const view = await createScene(platform.canvas, { arenaSize: TUNING.arenaSize, modelUrl });
+const playerUrl = platform.query.get('player') ?? 'models/player.glb';
+const view = await createScene(platform.canvas, { arenaSize: TUNING.arenaSize, modelUrl, playerUrl });
 platform.on('resize', (w, h) => view.resize(w, h));
 platform.resize();
 
@@ -27,7 +28,7 @@ platform.on('tap', () => { if (game.state.phase !== 'play') game.start(); });
 let paused = false;
 if (import.meta.env.MODE !== 'production') {
   window.__game = {
-    game, ready: true, modelSource: view.modelSource, modelError: view.modelError, input: () => platform.input(),
+    game, ready: true, modelSource: view.modelSource, modelError: view.modelError, playerSource: view.playerSource, playerError: view.playerError, input: () => platform.input(),
     step(seconds, input = { x: 0, z: 0 }, dt = 1 / 60) { paused = true; for (let t = 0; t < seconds; t += dt) game.update(dt, input); view.render(game.state, platform.now() / 1000); drawHud(game.state); },
     resume() { paused = false; },
   };

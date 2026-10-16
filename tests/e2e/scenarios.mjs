@@ -19,6 +19,7 @@ export const SCENARIOS = [
     async run({ page, open, shot, tap, state, assert }) {
       await open('?seed=1');
       assert((await state()).phase === 'title', '应停在标题页');
+      assert(await page.evaluate(() => window.__game.playerSource) === 'glb', '玩家应加载小木匠模型');
       assert(await painted(page), '画布没有渲染出场景');
       await shot('title');
       await tap(640, 360);
@@ -64,6 +65,27 @@ export const SCENARIOS = [
       await tap(640, 360);
       await page.evaluate(() => window.__game.step(1, { x: 1, z: 0 }));
       assert((await state()).phase === 'play', '回退后仍应可玩');
+      assert(await painted(page), '回退后画布没有渲染');
+      await shot('play');
+    },
+  },
+  {
+    // 缺玩家模型时回退到胶囊体，照常能拾取木箱
+    name: 'player-fallback',
+    async run({ page, open, shot, tap, state, assert }) {
+      await open('?seed=1&player=models/missing.glb');
+      assert(await page.evaluate(() => window.__game.playerSource) === 'fallback', '玩家应回退到胶囊体');
+      await tap(640, 360);
+      const got = await page.evaluate(() => {
+        const g = window.__game;
+        for (let i = 0; i < 600 && g.game.state.score === 0; i++) {
+          const { player: p, crate: c } = g.game.state;
+          const dx = c.x - p.x, dz = c.z - p.z, l = Math.hypot(dx, dz) || 1;
+          g.step(1 / 30, { x: dx / l, z: dz / l });
+        }
+        return g.game.state.score;
+      });
+      assert(got === 1, `回退后走到木箱上应得 1 分，实际 ${got}`);
       assert(await painted(page), '回退后画布没有渲染');
       await shot('play');
     },

@@ -16,3 +16,5 @@
 
 | 文件 | 用途 | 来源 | 模型 | 提示词或参考 | 任务 ID | 日期 |
 |---|---|---|---|---|---|---|
+| `public/images/player-ref.png` | 玩家角色小木匠的三维参考图（生成 player.glb 用） | 生成 | gpt-image-2.5-sunburst | Chibi cute little carpenter character, full body, standing, three-quarter front view, wearing a cap and a brown work apron, low-poly cartoon style, flat colors, simple shapes, plain pure white background, no shadow, no text, single character centered | - | 2026-10-16 |
+| `public/models/player.glb` | 玩家角色小木匠（src/render/scene.js 加载，高约 1.3 单位） | 生成 | Tripo P2-20260801 | 参考：public/images/player-ref.png | f3dff0f1-5bbf-44ea-bed9-9a98ed36db3b | 2026-10-16 |
