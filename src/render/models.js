@@ -44,3 +44,10 @@ export function crateFallback() {
   }
   return g;
 }
+
+// 程序化胶囊体：玩家模型缺失时使用
+export function capsuleFallback() {
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.6, 4, 12), new THREE.MeshStandardMaterial({ color: 0xe0a458, roughness: 0.5 }));
+  m.castShadow = true;
+  return m;
+}
