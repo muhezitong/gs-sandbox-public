@@ -31,3 +31,10 @@ test('评论：带隐藏标记；有地址给试玩链接，没有就说明如�
 test('截图：失败截图优先，最多 4 张', () => {
   assert.deepEqual(pickShots(['b.png', 'a.png', 'x-FAIL.png', 'c.png', 'd.png', 'e.json']), ['x-FAIL.png', 'a.png', 'b.png', 'c.png']);
 });
+
+test('发布 gh-pages 时写 .nojekyll（否则 _shots/ 不发布）；开启 Pages 用 JSON 请求体', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../../tools/preview.mjs', import.meta.url), 'utf8');
+  assert.match(src, /'\.nojekyll'/);
+  assert.match(src, /'--input', '-'\], \{ input: JSON\.stringify\(\{ source: \{ branch: 'gh-pages'/);
+});

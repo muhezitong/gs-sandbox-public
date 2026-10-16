@@ -2,7 +2,7 @@
 // 档位：有 CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID → Cloudflare Pages；公开仓库 → gh-pages 分支的 pr-<N>/；
 // 都没有 → 只有构建产物下载与截图说明。PR 下维护同一条评论（带隐藏标记）。零依赖，只用 node、git 与 gh。
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, appendFileSync, mkdtempSync, cpSync, rmSync, mkdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync, appendFileSync, mkdtempSync, cpSync, rmSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -66,8 +66,10 @@ function publishPages(repo, src, dest, message) {
     catch { sh('git', ['init', '-q', '-b', 'gh-pages', work]); sh('git', ['-C', work, 'remote', 'add', 'origin', remote]); }
     const target = dest ? join(work, dest) : work;
     if (dest) rmSync(target, { recursive: true, force: true });
-    else for (const n of readdirSync(work)) if (n !== '.git' && !n.startsWith('pr-')) rmSync(join(work, n), { recursive: true, force: true });
+    else for (const n of readdirSync(work)) if (n !== '.git' && n !== '.nojekyll' && !n.startsWith('pr-')) rmSync(join(work, n), { recursive: true, force: true });
     if (src) { mkdirSync(target, { recursive: true }); cpSync(src, target, { recursive: true }); }
+    // 关掉 Jekyll：否则 _shots/ 这类下划线目录不会被发布
+    writeFileSync(join(work, '.nojekyll'), '');
     sh('git', ['-C', work, 'add', '-A']);
     if (!sh('git', ['-C', work, 'status', '--porcelain'])) return false;
     sh('git', ['-C', work, '-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com', 'commit', '-q', '-m', message]);
@@ -78,7 +80,11 @@ function publishPages(repo, src, dest, message) {
 
 function ensurePagesSite(repo) {
   try { sh('gh', ['api', `repos/${repo}/pages`]); }
-  catch { try { sh('gh', ['api', '-X', 'POST', `repos/${repo}/pages`, '-f', 'source[branch]=gh-pages', '-f', 'source[path]=/']); } catch (e) { console.warn(`开启 Pages 失败：${e.message.split('\n')[0]}`); } }
+  catch {
+    // 嵌套参数要用 JSON 请求体；-f 'source[branch]=…' 会被拒（422）
+    try { sh('gh', ['api', '-X', 'POST', `repos/${repo}/pages`, '--input', '-'], { input: JSON.stringify({ source: { branch: 'gh-pages', path: '/' } }) }); console.log('已开启 GitHub Pages（gh-pages 分支）'); }
+    catch (e) { console.log(`::warning::开启 GitHub Pages 失败，预览地址暂时打不开：${e.message.split('\n')[0]}`); }
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
