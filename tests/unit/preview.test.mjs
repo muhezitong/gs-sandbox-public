@@ -43,3 +43,12 @@ test('启用设定集时评论附设定集链接', () => {
   const b = commentBody({ tier: 'pages', url: 'https://o.github.io/r/pr-1/', sha: 'abcdef1', runUrl: 'u', repo: 'o/r', lorebook: true });
   assert.match(b, /\[设定集\]\(https:\/\/o\.github\.io\/r\/pr-1\/lorebook\/\)/);
 });
+
+test('评论列出本 PR 的资产：有地址时图片给缩略图，模型列文件名', () => {
+  const b = commentBody({ tier: 'pages', url: 'https://o.github.io/r/pr-1/', sha: 'abcdef1', runUrl: 'u', repo: 'o/r', assets: ['public/images/hero.png', 'public/models/hero.glb'] });
+  assert.match(b, /本 PR 的资产\*\*（2 个/);
+  assert.match(b, /<img src="https:\/\/o\.github\.io\/r\/pr-1\/images\/hero\.png"/);
+  assert.match(b, /- `public\/models\/hero\.glb`/);
+  const priv = commentBody({ tier: 'artifact', url: null, sha: 'abcdef1', runUrl: 'u', repo: 'o/r', assets: ['public/images/hero.png'] });
+  assert.match(priv, /- `public\/images\/hero\.png`/);
+});

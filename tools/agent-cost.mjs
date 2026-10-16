@@ -36,8 +36,15 @@ export function summarize(messages, meta = {}) {
     error: r.is_error ?? !r.type,
     models,
     assets: meta.assets ?? { images: 0, models: 0 },
+    calls: meta.calls ?? { images: 0, models: 0, failed: 0 },
     ...(meta.round ? { round: meta.round } : {}),
   };
+}
+
+// 资产工具的调用次数（含失败）：.game-studio/run/asset-calls.jsonl，每次真实调用一行
+export function assetCalls(text) {
+  const rows = (text ?? '').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  return { images: rows.filter((r) => r.kind === 'image').length, models: rows.filter((r) => r.kind === 'model').length, failed: rows.filter((r) => !r.ok).length };
 }
 
 // 本次新增的生成资产：按文件扩展名分图片与三维模型
@@ -51,7 +58,14 @@ export function newAssets(before, after) {
 }
 
 export const costComment = (rec, runUrl) =>
-  `🤖 agent（${rec.mode}${rec.round ? ` 第 ${rec.round} 轮` : ''}）：费用约 $${rec.costUsd.toFixed(2)}，${rec.turns} 轮${rec.assets.images || rec.assets.models ? `，生成图片 ${rec.assets.images}、模型 ${rec.assets.models}` : ''}，${rec.error ? '出错' : '完成'}。[运行日志](${runUrl})\n<!-- ${COST_MARK} ${JSON.stringify(rec)} -->`;
+  `🤖 agent（${rec.mode}${rec.round ? ` 第 ${rec.round} 轮` : ''}）：费用约 $${rec.costUsd.toFixed(2)}，${rec.turns} 轮${callText(rec)}，${rec.error ? '出错' : '完成'}。[运行日志](${runUrl})\n<!-- ${COST_MARK} ${JSON.stringify(rec)} -->`;
+
+// 资产：调用次数（模型费用另计，见服务商账单）与最终登记的数量
+function callText(rec) {
+  const c = rec.calls ?? {};
+  if (!c.images && !c.models && !rec.assets.images && !rec.assets.models) return '';
+  return `；出图 ${c.images ?? 0} 次、出模 ${c.models ?? 0} 次${c.failed ? `（失败 ${c.failed}）` : ''}，登记新资产 ${rec.assets.images + rec.assets.models} 个（资产费用以服务商账单为准）`;
+}
 
 // 从评论里解析成本记录；与 costs.jsonl 合并时按 runId 去重
 export function fromComments(bodies) {
@@ -73,7 +87,8 @@ if (isMain(import.meta.url)) {
   const after = existsSync('assets/README.md') ? readFileSync('assets/README.md', 'utf8') : '';
   const prComments = process.env.PR_COMMENTS_FILE && existsSync(process.env.PR_COMMENTS_FILE) ? JSON.parse(readFileSync(process.env.PR_COMMENTS_FILE, 'utf8')) : [];
   const round = process.env.MODE === 'rework' ? reworkRound(fromComments(prComments), Number(process.env.TARGET)) : undefined;
-  console.log(JSON.stringify(summarize(messages, { round,
+  const calls = assetCalls(existsSync('.game-studio/run/asset-calls.jsonl') ? readFileSync('.game-studio/run/asset-calls.jsonl', 'utf8') : '');
+  console.log(JSON.stringify(summarize(messages, { round, calls,
     issue: Number(process.env.TARGET) || null, milestone: process.env.MILESTONE || null, mode: process.env.MODE || null,
     runId: process.env.GITHUB_RUN_ID ? Number(process.env.GITHUB_RUN_ID) : null, assets: newAssets(before, after),
   })));

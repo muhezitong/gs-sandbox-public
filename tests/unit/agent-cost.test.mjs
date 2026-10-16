@@ -1,7 +1,7 @@
 // agent 成本记录：解析、汇总、评论标记往返、合并去重（tools/agent-cost.mjs）。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseMessages, summarize, newAssets, costComment, fromComments, mergeCosts, reworkRound } from '../../tools/agent-cost.mjs';
+import { parseMessages, summarize, newAssets, costComment, fromComments, mergeCosts, reworkRound, assetCalls } from '../../tools/agent-cost.mjs';
 import { overBudget } from '../../tools/agent-gate.mjs';
 
 const result = { type: 'result', total_cost_usd: 0.73456, num_turns: 21, is_error: false, modelUsage: { 'claude-opus-5-5': { inputTokens: 10, outputTokens: 20, cacheReadInputTokens: 30, cacheCreationInputTokens: 40, costUSD: 0.73456 } } };
@@ -45,4 +45,13 @@ test('返工轮次：同一 PR 上已有的返工记录数加一，并写进评�
   assert.equal(reworkRound([], 16), 1);
   const rec = summarize([result], { mode: 'rework', issue: 16, round: 2, runId: 1, at: 'x' });
   assert.match(costComment(rec, 'u'), /agent（rework 第 2 轮）/);
+});
+
+test('资产调用次数：读调用日志，分图像与三维，失败单独计；评论里写出次数与登记数', () => {
+  const log = ['{"kind":"image","ok":true}', '{"kind":"image","ok":false,"code":"http"}', '{"kind":"model","ok":true}', '坏行'].join('\n');
+  const calls = assetCalls(log);
+  assert.deepEqual(calls, { images: 2, models: 1, failed: 1 });
+  const rec = summarize([result], { mode: 'do', calls, assets: { images: 1, models: 1 }, runId: 1, at: 'x' });
+  assert.match(costComment(rec, 'u'), /出图 2 次、出模 1 次（失败 1），登记新资产 2 个/);
+  assert.doesNotMatch(costComment(summarize([result], { mode: 'do' }), 'u'), /出图/);
 });

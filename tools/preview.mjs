@@ -28,13 +28,20 @@ export function pagesUrl(repo, path) {
 }
 
 // 评论正文：url 为 null 表示没有可试玩地址
-export function commentBody({ tier, url, sha, shots = [], runUrl, repo, lorebook = false }) {
+export function commentBody({ tier, url, sha, shots = [], runUrl, repo, lorebook = false, assets = [] }) {
   const lines = [MARK, `### 🎮 试玩预览`, ''];
   if (url) lines.push(`**[打开试玩](${url})**（${{ cloudflare: 'Cloudflare Pages', pages: 'GitHub Pages' }[tier]}，提交 \`${sha.slice(0, 7)}\`）`);
   if (url && lorebook) lines.push(`[设定集](${url}lorebook/)`);
   else lines.push(`这个仓库还没有可直接打开的试玩地址。构建产物在[本次运行](${runUrl})的 Artifacts 里（\`preview-dist\`，下载后用本地静态服务器打开）。`, '', `开启可试玩预览：在仓库 Secrets 设置 \`CLOUDFLARE_API_TOKEN\`（Cloudflare Pages 编辑权限）与 \`CLOUDFLARE_ACCOUNT_ID\`，或把仓库设为公开以使用 GitHub Pages。`);
   if (shots.length) lines.push('', '| ' + shots.map((s) => s.name).join(' | ') + ' |', '|' + shots.map(() => '---').join('|') + '|', '| ' + shots.map((s) => `<img src="${s.url}" width="180">`).join(' | ') + ' |');
   else lines.push('', `e2e 截图在[本次运行](${runUrl})的 Artifacts 里（\`e2e-shots\`）。`);
+  if (assets.length) {
+    const img = assets.filter((a) => /\.(png|jpe?g|webp|gif|avif)$/i.test(a));
+    const other = assets.filter((a) => !img.includes(a));
+    lines.push('', `**本 PR 的资产**（${assets.length} 个，来源见 \`assets/README.md\`）`);
+    if (img.length && url) lines.push('', img.slice(0, 6).map((a) => `<img src="${url}${a.replace(/^public\//, '')}" width="120" alt="${a}">`).join(' '));
+    for (const a of [...(url ? [] : img), ...other]) lines.push(`- \`${a}\``);
+  }
   lines.push('', `<sub>由 CI 自动更新 · [运行日志](${runUrl}) · ${repo}</sub>`);
   return lines.join('\n');
 }
@@ -135,5 +142,8 @@ if (isMain(import.meta.url)) {
   }
   out('url', url ?? '');
   console.log(`预览：${tier} ${url ?? '（无地址）'}`);
-  if (pr) upsertComment(repo, pr, commentBody({ tier, url, sha, shots, runUrl, repo, lorebook: existsSync('dist/lorebook/index.html') }));
+  // PR 里新增或修改的资产文件（public/、assets/ 下的图片与模型）
+  let assets = [];
+  if (pr) { try { assets = sh('gh', ['pr', 'diff', String(pr), '-R', repo, '--name-only']).split('\n').filter((f) => /^(public|assets)\/.+\.(png|jpe?g|webp|gif|avif|glb|gltf)$/i.test(f) && !f.startsWith('public/lorebook/')); } catch { /* 拿不到 diff 就不列 */ } }
+  if (pr) upsertComment(repo, pr, commentBody({ tier, url, sha, shots, runUrl, repo, lorebook: existsSync('dist/lorebook/index.html'), assets }));
 }

@@ -1,12 +1,13 @@
-# 公开沙盒
+# 公开沙盒3D
 
 唯一设计基准：`docs/01-设计/01-游戏方向.md`。改玩法数值先改文档，再改 `src/data/`。
 
 ## 平台与技术栈
 
-- 目标平台：浏览器竖版 2D 单机；如需微信小游戏，在 `src/platform/` 增加 `wx` 实现，规则层不改。
-- 原生 JavaScript（ES Modules）+ Canvas 2D，不引入游戏引擎；构建用 Vite。
-- 逻辑与渲染分离：`src/core/`、`src/data/` 不碰 Canvas、DOM 与平台 API，单测直接导入。
+- 目标平台：浏览器横屏 3D 单机（16:9，1280×720 逻辑尺寸）；需要桌面客户端时用 Electron 加载 `dist/`。
+- Three.js + Vite；规则层不依赖 three。
+- 逻辑与渲染分离：`src/core/`、`src/data/` 不碰 three、DOM 与平台 API，单测直接导入；`src/render/` 读规则状态画场景。
+- 模型统一经 `src/render/models.js` 加载：归一化尺寸、底面落地、加载失败回退到程序化模型，游戏不因缺资产而不可玩。
 
 ## 命令
 
@@ -14,17 +15,20 @@
 - `npm test` — 规格单测（`node --test`）：规则、文档规范、分层约束
 - `npm run build` — 构建到 `dist/`（相对路径）；`npm run preview` 在 5191 端口预览构建产物
 - `npm run e2e [场景...]` — Playwright + Chrome 自动试玩并截图到 `tests/shots/`（场景在 `tests/e2e/scenarios.mjs`）；默认测 `--mode e2e` 构建产物，`BASE=` 连已有服务器
+- `npm run asset -- image --out public/images/<名>.webp --use <用途> --prompt "…" [--quality low] [--dry-run]` — 生成图片并自动登记到 `assets/README.md`；密钥只从环境变量读（`OPENAI_API_KEY`，可选 `OPENAI_BASE_URL`、`IMAGE_MODEL`）。三维：`npm run asset -- model --out public/models/<名>.glb --use <用途> --image <参考图>`（Tripo，`TRIPO_API_KEY`，可选 `TRIPO_BASE_URL`；国内用 `https://openapi.tripo3d.com`）。本地交互可用 MCP：`claude --mcp-config .game-studio/mcp.json`（工具 `asset_image`、`asset_model`）
+- 设定集网站（可选）：`npm run lorebook -- enable` 建《世界观设定集》并生成 `public/lorebook/`（随游戏部署到 `/lorebook/`）；改了设定集后 `npm run lorebook -- build`，`npm test` 校验二者一致
 - 预览：CI 在 e2e 通过后发布试玩地址并在 PR 下维护一条评论（`tools/preview.mjs`）。有 Secrets `CLOUDFLARE_API_TOKEN` 与 `CLOUDFLARE_ACCOUNT_ID` 用 Cloudflare Pages；公开仓库用 GitHub Pages 的 `pr-<N>/`；都没有只给构建产物下载
 - `npm run setup:github -- [owner/repo] [--prune-default]` — 按 CLAUDE.md 与《迭代计划》建标签与里程碑（幂等）
 - 调试：开发服务器与非生产构建里有 `window.__game`；`?seed=<数字>` 固定随机种子
-- agent：给 issue 打 `agent:go`，或在评论里写 `/agent 拆 issue：…`、`/agent 确认`，在 PR 里写 `/agent 再改改：…`，由 `.github/workflows/agent.yml` 在 Actions 里运行；预算在 `.game-studio/budget.json`。首次使用需要：仓库 Secrets `ANTHROPIC_API_KEY`（可选 `ANTHROPIC_BASE_URL`）、可选仓库变量 `AGENT_MODEL`，以及允许 Actions 创建 PR（`npm run setup:github` 会设置；组织仓库要先在组织设置里打开）
+- agent：给 issue 打 `agent:go`，或在评论里写 `/agent 拆 issue：…`、`/agent 确认`，在 PR 里写 `/agent 再改改：…`（在同一分支返工，CI 与预览随之刷新），由 `.github/workflows/agent.yml` 在 Actions 里运行。agent 开的 PR 上 GitHub 还会生成待批准（action_required）的 `pull_request` 运行，可忽略：门禁以 agent 派发的那次 CI 为准；预算在 `.game-studio/budget.json`。首次使用需要：仓库 Secrets `ANTHROPIC_API_KEY`（可选 `ANTHROPIC_BASE_URL`）、可选仓库变量 `AGENT_MODEL`；要让 agent 生成资产，再加 Secrets `OPENAI_API_KEY`（可选 `OPENAI_BASE_URL`）与 `TRIPO_API_KEY`，可选变量 `IMAGE_MODEL`、`TRIPO_BASE_URL`，以及允许 Actions 创建 PR（`npm run setup:github` 会设置；组织仓库要先在组织设置里打开）
 
 ## 结构
 
 - `src/data/` 纯数据：数值表（无副作用，单测直接导入）
-- `src/core/` 纯规则：随机数、对局状态
-- `src/render/` Canvas 绘制；`src/platform/` 画布、输入、存储适配
-- `public/` 静态资产（构建时原样复制）；`assets/README.md` 资产登记表
+- `src/core/` 纯规则：随机数、对局状态（平面坐标 x / z，不依赖 three）
+- `src/render/` three 场景、相机、灯光；`src/render/models.js` 统一加载 GLB（归一化、落地、回退）
+- `src/platform/` 画布尺寸与输入（键盘、触摸摇杆）
+- `public/models/` GLB 资产；`assets/README.md` 资产登记表
 - `tests/` 单测与 e2e；`tools/` 资产与辅助脚本
 
 <!-- studio:process -->
@@ -36,7 +40,7 @@
 
 - 粒度：一个 PR 能独立完成、独立验证。做不完或混了多件事就拆开，拆出的部分建新 issue。
 - 新 issue 用 `.github/ISSUE_TEMPLATE/` 的模板，写清背景、要做的事、验收、依赖（`#编号`）、参考文档章节。
-- 标签每类各选一个：`类型:`（功能/缺陷/重构/美术/文档/测试）、`区域:`（玩法/数值/界面/美术/音频/工程/发布）、`优先级:`（高/中/低）。
+- 标签每类各选一个：`类型:`（功能/缺陷/重构/美术/文档/测试）、`区域:`（玩法/数值/关卡/界面/美术/音频/工程/发布）、`优先级:`（高/中/低）。
 - 归入对应里程碑（迭代 1 起顺延）。新迭代先建里程碑，再建 issue。
 - 开工前检查依赖：依赖的 issue 未关闭就先做依赖。
 - 做的过程中发现新问题，另开 issue，不塞进当前 PR。
