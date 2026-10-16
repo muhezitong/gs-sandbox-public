@@ -97,7 +97,32 @@ export const SCENARIOS = [
       await tap(640, 360);
       await page.evaluate(() => window.__game.step(31));
       assert((await state()).phase === 'over', '时间到应结束');
-      assert(/时间到/.test(await page.locator('#hud').innerText()), '结束页应显示“时间到”');
+      const text = await page.locator('#hud').innerText();
+      assert(/时间到/.test(text), '结束页应显示“时间到”');
+      assert(!/最快一次/.test(text), '不足两次拾取时不应显示最快一次');
+      await shot('end');
+    },
+  },
+  {
+    // 拾取两次以上，结束页在收集数下面显示最快一次间隔
+    name: 'over-best',
+    async run({ page, open, tap, shot, state, assert }) {
+      await open('?seed=1');
+      await tap(640, 360);
+      const score = await page.evaluate(() => {
+        const g = window.__game;
+        for (let i = 0; i < 1200 && g.game.state.score < 3; i++) {
+          const { player: p, crate: c } = g.game.state;
+          const dx = c.x - p.x, dz = c.z - p.z, l = Math.hypot(dx, dz) || 1;
+          g.step(1 / 30, { x: dx / l, z: dz / l });
+        }
+        g.step(31);
+        return g.game.state.score;
+      });
+      const s = await state();
+      assert(s.phase === 'over' && score >= 2, `应拾取至少 2 次后结束，实际 ${score} 次`);
+      const best = await page.locator('#hud .best').innerText();
+      assert(best === `最快一次 ${s.bestInterval.toFixed(1)} 秒`, `结束页最快一次不对：${best}`);
       await shot('end');
     },
   },
