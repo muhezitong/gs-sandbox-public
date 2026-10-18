@@ -2,6 +2,7 @@
 // node tools/agent-cost.mjs <execution_file> → 打印一行 JSON 记录；费用是运行端按价格表估算，不是账单。
 // 记录同时写进 issue 评论的隐藏标记（未合并的运行也能被预算检查看到）与 agent 分支的 .game-studio/costs.jsonl。
 import { readFileSync, existsSync } from 'node:fs';
+import { details, MODE_TEXT } from './wording.mjs';
 import { fileURLToPath } from 'node:url';
 import { realpathSync } from 'node:fs';
 // 是否被直接运行：比较真实路径（macOS 上 /var 是 /private/var 的符号链接，直接比字符串会误判）
@@ -57,14 +58,18 @@ export function newAssets(before, after) {
   };
 }
 
-export const costComment = (rec, runUrl) =>
-  `🤖 agent（${rec.mode}${rec.round ? ` 第 ${rec.round} 轮` : ''}）：费用约 $${rec.costUsd.toFixed(2)}，${rec.turns} 轮${callText(rec)}，${rec.error ? '出错' : '完成'}。[运行日志](${runUrl})\n<!-- ${COST_MARK} ${JSON.stringify(rec)} -->`;
+// 费用评论：白话一句 + 隐藏标记（预算检查与控制台都读它）+ 折叠的详情
+export const costComment = (rec, runUrl) => [
+  `🤖 ${MODE_TEXT[rec.mode] ?? 'agent'}${rec.round ? `（第 ${rec.round} 次）` : ''}${rec.error ? '没做成' : '做完了'}：费用约 $${rec.costUsd.toFixed(2)}，用了 ${rec.turns} 轮${callText(rec)}。`,
+  ...details([`[运行日志](${runUrl})`, `模式 \`${rec.mode}\`；费用是按价格表估算，不是账单${rec.calls?.images || rec.calls?.models ? '；出图出模的费用以服务商账单为准' : ''}`]),
+  `<!-- ${COST_MARK} ${JSON.stringify(rec)} -->`,
+].join('\n');
 
-// 资产：调用次数（模型费用另计，见服务商账单）与最终登记的数量
+// 资产：调用次数与最终登记的数量
 function callText(rec) {
   const c = rec.calls ?? {};
   if (!c.images && !c.models && !rec.assets.images && !rec.assets.models) return '';
-  return `；出图 ${c.images ?? 0} 次、出模 ${c.models ?? 0} 次${c.failed ? `（失败 ${c.failed}）` : ''}，登记新资产 ${rec.assets.images + rec.assets.models} 个（资产费用以服务商账单为准）`;
+  return `；出图 ${c.images ?? 0} 次、出模 ${c.models ?? 0} 次${c.failed ? `（失败 ${c.failed} 次）` : ''}，新增资产 ${rec.assets.images + rec.assets.models} 个`;
 }
 
 // 从评论里解析成本记录；与 costs.jsonl 合并时按 runId 去重

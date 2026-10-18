@@ -59,7 +59,18 @@ export function labels(areas) {
 }
 
 if (isMain(import.meta.url)) {
-  const gh = (...a) => (dryRun ? (console.log('gh', a.join(' ')), '[]') : execFileSync('gh', a, { encoding: 'utf8' }));
+  // 网络偶尔断开（代理 EOF、连接超时）：每个调用最多重试 3 次
+  const gh = (...a) => {
+    if (dryRun) { console.log('gh', a.join(' ')); return '[]'; }
+    for (let i = 0; ; i++) {
+      try { return execFileSync('gh', a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); }
+      catch (e) {
+        const msg = String(e.stderr ?? e.message);
+        if (i >= 3 || !/EOF|timeout|connect|reset|TLS|502|503/i.test(msg)) throw e;
+        execFileSync('sleep', [String(1 + i)]);
+      }
+    }
+  };
   const repo = args.find((a) => !a.startsWith('--')) ?? JSON.parse(gh('repo', 'view', '--json', 'nameWithOwner') || '{}').nameWithOwner;
   if (!repo) { console.error('用法：npm run setup:github -- <owner/repo>'); process.exit(1); }
   for (const [name, description, color] of labels(areasFrom(read('CLAUDE.md')))) {

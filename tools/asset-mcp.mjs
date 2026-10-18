@@ -37,6 +37,7 @@ export const TOOLS = [
       model: { type: 'string', description: '默认 tripo-p2' },
       seed: { type: 'integer' },
       timeout: { type: 'integer', description: '轮询超时秒数，默认 600' },
+      face_limit: { type: 'integer', description: '面数上限（Tripo 生成时控制）' },
     } },
   },
 ];

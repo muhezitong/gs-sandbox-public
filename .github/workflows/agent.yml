@@ -71,6 +71,9 @@ jobs:
           cp assets/README.md .game-studio/run/assets-before.md 2>/dev/null || true
         env:
           INSTRUCTION: ${{ needs.gate.outputs.instruction }}
+      - name: 进度：开始
+        # 一条随运行更新的进度评论（隐藏标记，控制台据此画时间线）
+        run: if [ "$MODE" = rework ]; then node tools/agent-progress.mjs read "看返工意见"; else node tools/agent-progress.mjs read "读需求"; fi
       - id: claude
         uses: anthropics/claude-code-action@v1
         env:
@@ -97,14 +100,17 @@ jobs:
 
             - do：用 do-issue 技能完成 issue #${{ needs.gate.outputs.target }}，提 PR。
             - rework：#${{ needs.gate.outputs.target }} 是 PR。切到它的分支，按 instruction.md 的意见返工，推到同一分支，在 PR 下评论改了什么。
-            - plan：用 plan-issues 技能按 instruction.md 的需求出 issue 草稿，作为评论发在 #${{ needs.gate.outputs.target }} 下，评论第一行写 <!-- agent:draft -->，结尾提示用户回复“/agent 确认”。不要创建 issue。
+            - plan：用 plan-issues 技能按 instruction.md 的需求出 issue 草稿，作为评论发在 #${{ needs.gate.outputs.target }} 下，评论第一行写 <!-- agent:draft -->，结尾用白话告诉用户：在控制台里确认，或回复“/agent 确认”。不要创建 issue。
             - confirm：读 #${{ needs.gate.outputs.target }} 下最近一条以 <!-- agent:draft --> 开头的评论，按草稿用 plan-issues 的规则创建 issue，在 #${{ needs.gate.outputs.target }} 下回复创建结果。
 
             硬性规则：
             - 不合并任何 PR，不运行 gh pr merge，不推送 main。
             - 门禁（npm test、npm run build、npm run e2e）失败要修到通过；修不了就停下，在 #${{ needs.gate.outputs.target }} 下评论原因。
             - 不提交 .game-studio/run/。
-            - 需要图片或三维模型时，用 asset_image / asset_model 工具（或 npm run asset），它们会自动登记到 assets/README.md；不要手写登记行。三维先用 asset_image 出白底参考图，再 asset_model。草稿用 quality=low。一次运行里真实调用超过 20 次前先停下，在 #${{ needs.gate.outputs.target }} 下说明要调用多少次、为什么。生成后打开图片看一眼，三维看面数与警告。
+            - 进度：每进入一个阶段先运行 `node tools/agent-progress.mjs <阶段> "<一句白话>"`，阶段依次是 docs（改文档）、code（写代码）、assets（出资产，没有就跳过）、test（跑测试）、pr（提交改动）。一句话写给不写代码的玩家看，比如 `node tools/agent-progress.mjs code "给得分加上连击倍率"`。
+            - 白话：发到 GitHub 的评论与 PR 说明写给不写代码的玩家看，不用 PR、issue、CI、merge、squash、token、JSON、Secrets、workflow 这些词（说“任务”“这次改动”“自动检查”“通过”“用量”“模型密钥”）；文件名、命令、链接等技术细节放进 `<details><summary>详情</summary>…</details>` 折叠区。
+            - do 与 rework 都要在 PR 正文里维护一段玩家能看懂的改动说明（玩起来有什么不同，2–5 句，不提代码），放在两行标记之间：`<!-- game-studio:summary -->` 与 `<!-- /game-studio:summary -->`；rework 时更新它，并在说明里写这次改了什么。
+            - 需要图片或三维模型时，用 asset_image / asset_model 工具（或 npm run asset），它们会自动登记到 assets/README.md；不要手写登记行。三维先用 asset_image 出白底参考图到 assets/refs/（不进游戏包），再 asset_model（web 端用 face_limit 控制面数，一般 3000–8000）。草稿用 quality=low。一次运行里真实调用超过 20 次前先停下，在 #${{ needs.gate.outputs.target }} 下说明要调用多少次、为什么。生成后打开图片看一眼，三维看面数与警告。
             - 缺对应密钥（工具报 no_key）时不要绕开，改用代码绘制或程序化模型，并在 PR 里写明。
             - gh pr create 因仓库或组织不允许 Actions 创建 PR 而失败时：分支照常推送，在 #${{ needs.gate.outputs.target }} 下评论开 PR 的链接（${{ github.server_url }}/${{ github.repository }}/compare/main...<分支>?expand=1）和你准备好的 PR 标题与正文，请用户点开创建。
       - name: 记录成本
@@ -122,6 +128,7 @@ jobs:
             git add .game-studio/costs.jsonl && git commit -q -m "Record agent run cost" -m "Refs #$TARGET" && git push -q origin "HEAD:$br"
           fi
           echo "AGENT_BRANCH=$br" >> "$GITHUB_ENV"
+          node tools/agent-progress.mjs done "$rec"
         env:
           EXEC_FILE: ${{ steps.claude.outputs.execution_file }}
       - name: 派发 CI

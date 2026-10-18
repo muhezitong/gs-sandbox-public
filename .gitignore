@@ -5,3 +5,4 @@ tests/shots/
 .DS_Store
 *.log
 .game-studio/run/
+tests/shots-before/

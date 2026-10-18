@@ -14,6 +14,21 @@ gh issue list --milestone "<里程碑>" --state all --json number,title,state
 
 除复核 issue 本身，其余 issue 都应已关闭；没关的列出来，问用户是继续复核还是先完成。
 
+判断一个已关闭的 issue“有没有落地”之前，先看它是怎么关的：
+
+```bash
+gh api graphql -F o={owner} -F r={repo} -F n=<N> -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){issue(number:$n){stateReason timelineItems(itemTypes:[CLOSED_EVENT],last:1){nodes{... on ClosedEvent{closer{__typename ... on PullRequest{number merged}}}}}}}}'
+gh api "repos/{owner}/{repo}/issues/<N>/comments" --jq '.[-1].body'
+```
+
+（用 GraphQL：部分 gh 版本的 `gh issue view --json` 没有 `stateReason`。）
+
+| 关闭方式 | 怎么算 |
+|---|---|
+| `closer` 是已合并的 PR | 已落地，对照验收检查效果 |
+| `stateReason` 为 `NOT_PLANNED`，或关闭评论说明不做 / 重复 / 验证用 | 按设计不做，**不算未落地**，不新建修复 issue；复核文档里列一行说明即可 |
+| 没有 PR、也没有说明就关了 | 可疑：在复核文档里写出来，问用户；用户确认要做再建 issue |
+
 ## 2. 自动化复核
 
 `npm test && npm run build && npm run e2e`，逐张看截图，对照《游戏方向》各节记录不符之处。

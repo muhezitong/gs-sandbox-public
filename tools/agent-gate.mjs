@@ -5,6 +5,7 @@ import { readFileSync, existsSync, appendFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { fromComments, mergeCosts } from './agent-cost.mjs';
+import { marker, details } from './wording.mjs';
 import { realpathSync } from 'node:fs';
 // 是否被直接运行：比较真实路径（macOS 上 /var 是 /private/var 的符号链接，直接比字符串会误判）
 const isMain = (url) => { try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(url)); } catch { return false; } };
@@ -38,6 +39,20 @@ export function overBudget(budget, costs, milestone) {
   return spent >= cap ? { cap, spent } : null;
 }
 
+// 拦下时的评论：白话原因 + 隐藏标记（控制台收件箱据此识别）+ 折叠的详情
+export const BLOCKED = 'blocked';
+export function blockedComment(kind, data) {
+  const text = {
+    deps: () => `要先做完 ${data.deps.map((n) => `#${n}`).join('、')}，这个任务才能开始。做完后再点一次“开始”。`,
+    budget: () => `「${data.milestone}」这个迭代已经花了 $${data.spent.toFixed(2)}，到了预算上限 $${data.cap}。在控制台里调高预算后再点“开始”。`,
+  }[kind]?.() ?? data.reason;
+  const tech = {
+    deps: () => `依赖未关闭：${data.deps.map((n) => `#${n}`).join('、')}（issue 正文“## 依赖”一节）`,
+    budget: () => `里程碑预算：.game-studio/budget.json 的 milestones["${data.milestone}"] = ${data.cap}，已花 ${data.spent.toFixed(4)}`,
+  }[kind]?.();
+  return [marker(BLOCKED, { kind, ...data }), `🛑 还不能开始：${text}`, ...details([tech])].join('\n');
+}
+
 // 从事件得出要做的事；返回 { mode, target, instruction } 或 { skip: 原因 }
 export function decide(event, name) {
   if (name === 'issues') {
@@ -67,9 +82,9 @@ if (isMain(import.meta.url)) {
     const tag = `__GS_${Math.random().toString(36).slice(2)}__`;
     appendFileSync(process.env.GITHUB_OUTPUT, String(v).includes('\n') ? `${k}<<${tag}\n${v}\n${tag}\n` : `${k}=${v}\n`);
   };
-  const block = (n, why) => {
-    gh('issue', 'comment', String(n), '-R', repo, '-b', `🛑 agent 未运行：${why}`);
-    console.log(`blocked: ${why}`);
+  const block = (n, kind, data) => {
+    gh('issue', 'comment', String(n), '-R', repo, '-b', blockedComment(kind, data));
+    console.log(`blocked: ${kind} ${JSON.stringify(data)}`);
     out('ok', 'false');
   };
 
@@ -79,7 +94,7 @@ if (isMain(import.meta.url)) {
   if (d.mode === 'do') {
     const deps = dependenciesOf(event.issue.body);
     const open = deps.filter((n) => gh('api', `repos/${repo}/issues/${n}`, '--jq', '.state') !== 'closed');
-    if (open.length) { block(d.target, `依赖未关闭：${open.map((n) => `#${n}`).join('、')}。先完成依赖再打 \`${GO_LABEL}\`。`); process.exit(0); }
+    if (open.length) { block(d.target, 'deps', { deps: open, milestone: event.issue.milestone?.title ?? null }); process.exit(0); }
   }
   const budget = existsSync('.game-studio/budget.json') ? JSON.parse(readFileSync('.game-studio/budget.json', 'utf8')) : null;
   const ledger = existsSync('.game-studio/costs.jsonl') ? readFileSync('.game-studio/costs.jsonl', 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
@@ -91,7 +106,7 @@ if (isMain(import.meta.url)) {
   const closes = !milestone && event.issue.pull_request && (event.issue.body ?? '').match(/^(?:Closes|Fixes|Resolves) #(\d+)/im);
   if (closes) milestone = gh('api', `repos/${repo}/issues/${closes[1]}`, '--jq', '.milestone.title // ""') || undefined;
   const over = milestone && overBudget(budget, costs, milestone);
-  if (over) { block(d.target, `里程碑「${milestone}」已花费 $${over.spent.toFixed(2)}，达到预算 $${over.cap}。调整 \`.game-studio/budget.json\` 后重试。`); process.exit(0); }
+  if (over) { block(d.target, 'budget', { milestone, spent: over.spent, cap: over.cap }); process.exit(0); }
 
   out('ok', 'true');
   out('mode', d.mode);
