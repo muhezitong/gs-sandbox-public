@@ -19,7 +19,7 @@ const hud = document.getElementById('hud');
 function drawHud(s) {
   if (s.phase === 'title') hud.innerHTML = `<div class="center"><div class="title">${TITLE}</div><div class="hint">按空格或点一下开始 · WASD / 方向键移动</div></div>`;
   else if (s.phase === 'play') hud.innerHTML = `<div class="top">木箱 ${s.score}<div class="sub">剩余 ${Math.ceil(s.timeLeft)} 秒</div></div>`;
-  else hud.innerHTML = `<div class="center"><div class="title">时间到 · ${s.score} 个</div>${s.bestInterval === null ? '' : `<div class="hint best">最快一次 ${s.bestInterval.toFixed(1)} 秒</div>`}<div class="hint">按空格或点一下再来一局</div></div>`;
+  else hud.innerHTML = `<div class="center"><div class="title">时间到 · ${s.score} 个</div>${s.bestInterval === null ? '' : `<div class="hint best">最快一次：${s.bestInterval.toFixed(1)} 秒</div>`}<div class="hint">按空格或点一下再来一局</div></div>`;
 }
 
 platform.on('tap', () => { if (game.state.phase !== 'play') game.start(); });

@@ -122,7 +122,7 @@ export const SCENARIOS = [
       const s = await state();
       assert(s.phase === 'over' && score >= 2, `应拾取至少 2 次后结束，实际 ${score} 次`);
       const best = await page.locator('#hud .best').innerText();
-      assert(best === `最快一次 ${s.bestInterval.toFixed(1)} 秒`, `结束页最快一次不对：${best}`);
+      assert(best === `最快一次：${s.bestInterval.toFixed(1)} 秒`, `结束页最快一次不对：${best}`);
       await shot('end');
     },
   },
