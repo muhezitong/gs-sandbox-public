@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>公开沙盒3D</title>
+  <link rel="icon" href="data:,">
+  <style>
+    html, body { margin: 0; height: 100%; background: #101317; overflow: hidden; touch-action: none; }
+    body { display: flex; align-items: center; justify-content: center; font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif; }
+    #stage { position: relative; }
+    #game { display: block; }
+    #hud { position: absolute; inset: 0; pointer-events: none; color: #f2ede1; }
+    #hud .top { position: absolute; top: 3%; left: 0; right: 0; text-align: center; font-weight: 600; font-size: 22px; text-shadow: 0 1px 3px #000a; }
+    #hud .sub { color: #c9d6cd; font-size: 15px; }
+    #hud .center { position: absolute; top: 40%; left: 0; right: 0; text-align: center; }
+    #hud .title { font-size: 44px; font-weight: 700; }
+    #hud .hint { margin-top: 12px; font-size: 18px; color: #c9d6cd; }
+  </style>
+  <script type="module" crossorigin src="./assets/index-B8Ynts4G.js"></script>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game" aria-label="公开沙盒3D游戏画面"></canvas>
+    <div id="hud" aria-live="polite"></div>
+  </div>
+</body>
+</html>
