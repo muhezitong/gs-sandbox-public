@@ -31,7 +31,7 @@ test('新增生成资产：只数“生成”来源的新行，按扩展名分�
 test('评论标记往返，与 costs.jsonl 合并时按 runId 去重，预算按合并结果算', () => {
   const rec = summarize([result], { issue: 9, milestone: '迭代 1', mode: 'do', runId: 42, at: 'x' });
   const body = costComment(rec, 'https://x/run');
-  assert.match(body, /费用约 \$0\.73，21 轮，完成/);
+  assert.match(body, /做任务做完了：费用约 \$0\.73，用了 21 轮/);
   const parsed = fromComments([body, '无关评论', '<!-- game-studio:cost {坏的} -->']);
   assert.deepEqual(parsed, [rec]);
   const merged = mergeCosts([rec], parsed, [{ ...rec, runId: 43, costUsd: 3 }]);
@@ -44,7 +44,7 @@ test('返工轮次：同一 PR 上已有的返工记录数加一，并写进评�
   assert.equal(reworkRound(recs, 16), 3);
   assert.equal(reworkRound([], 16), 1);
   const rec = summarize([result], { mode: 'rework', issue: 16, round: 2, runId: 1, at: 'x' });
-  assert.match(costComment(rec, 'u'), /agent（rework 第 2 轮）/);
+  assert.match(costComment(rec, 'u'), /再改改（第 2 次）/);
 });
 
 test('资产调用次数：读调用日志，分图像与三维，失败单独计；评论里写出次数与登记数', () => {
@@ -52,6 +52,6 @@ test('资产调用次数：读调用日志，分图像与三维，失败单独�
   const calls = assetCalls(log);
   assert.deepEqual(calls, { images: 2, models: 1, failed: 1 });
   const rec = summarize([result], { mode: 'do', calls, assets: { images: 1, models: 1 }, runId: 1, at: 'x' });
-  assert.match(costComment(rec, 'u'), /出图 2 次、出模 1 次（失败 1），登记新资产 2 个/);
+  assert.match(costComment(rec, 'u'), /出图 2 次、出模 1 次（失败 1 次），新增资产 2 个/);
   assert.doesNotMatch(costComment(summarize([result], { mode: 'do' }), 'u'), /出图/);
 });

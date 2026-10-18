@@ -11,6 +11,7 @@ import { realpathSync } from 'node:fs';
 const isMain = (url) => { try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(url)); } catch { return false; } };
 
 export const MARK = '<!-- game-studio:preview -->';
+import { marker, details } from './wording.mjs';
 
 export function chooseTier({ cloudflare, visibility }) {
   if (cloudflare) return 'cloudflare';
@@ -27,22 +28,32 @@ export function pagesUrl(repo, path) {
   return `https://${owner.toLowerCase()}.github.io/${site}${path}`;
 }
 
-// 评论正文：url 为 null 表示没有可试玩地址
-export function commentBody({ tier, url, sha, shots = [], runUrl, repo, lorebook = false, assets = [] }) {
-  const lines = [MARK, `### 🎮 试玩预览`, ''];
-  if (url) lines.push(`**[打开试玩](${url})**（${{ cloudflare: 'Cloudflare Pages', pages: 'GitHub Pages' }[tier]}，提交 \`${sha.slice(0, 7)}\`）`);
-  if (url && lorebook) lines.push(`[设定集](${url}lorebook/)`);
-  else lines.push(`这个仓库还没有可直接打开的试玩地址。构建产物在[本次运行](${runUrl})的 Artifacts 里（\`preview-dist\`，下载后用本地静态服务器打开）。`, '', `开启可试玩预览：在仓库 Secrets 设置 \`CLOUDFLARE_API_TOKEN\`（Cloudflare Pages 编辑权限）与 \`CLOUDFLARE_ACCOUNT_ID\`，或把仓库设为公开以使用 GitHub Pages。`);
-  if (shots.length) lines.push('', '| ' + shots.map((s) => s.name).join(' | ') + ' |', '|' + shots.map(() => '---').join('|') + '|', '| ' + shots.map((s) => `<img src="${s.url}" width="180">`).join(' | ') + ' |');
-  else lines.push('', `e2e 截图在[本次运行](${runUrl})的 Artifacts 里（\`e2e-shots\`）。`);
+// 评论正文：url 为 null 表示没有可试玩地址。before：同名的改前截图（main 上跑的 e2e），有就并排显示
+// 白话在上，技术细节（档位、提交、运行日志、怎么开启试玩地址）收进“详情”（《控制台架构》§3）
+export function commentBody({ tier, url, sha, shots = [], before = [], runUrl, repo, lorebook = false, assets = [] }) {
+  const lines = [MARK, marker('shots', { url, shots: shots.map((s) => s.name), before: before.map((s) => s.name), sha: sha.slice(0, 7) }), '### 🎮 试玩', ''];
+  if (url) lines.push(`**[打开试玩](${url})**${lorebook ? ` · [设定集](${url}lorebook/)` : ''}`);
+  else lines.push('这个游戏还没有在线试玩地址，可以在控制台里用本机试玩。');
+  if (shots.length) {
+    const prev = new Map(before.map((s) => [s.name, s]));
+    const paired = shots.filter((s) => prev.has(s.name));
+    if (paired.length) {
+      lines.push('', '**改前 → 改后**', '', '| 画面 | 改前 | 改后 |', '|---|---|---|');
+      for (const s of paired) lines.push(`| ${s.name} | <img src="${prev.get(s.name).url}" width="160"> | <img src="${s.url}" width="160"> |`);
+    }
+    const fresh = shots.filter((s) => !prev.has(s.name));
+    if (fresh.length) lines.push('', paired.length ? '**新画面**' : '**画面**', '', '| ' + fresh.map((s) => s.name).join(' | ') + ' |', '|' + fresh.map(() => '---').join('|') + '|', '| ' + fresh.map((s) => `<img src="${s.url}" width="180">`).join(' | ') + ' |');
+  }
   if (assets.length) {
     const img = assets.filter((a) => /\.(png|jpe?g|webp|gif|avif)$/i.test(a));
-    const other = assets.filter((a) => !img.includes(a));
-    lines.push('', `**本 PR 的资产**（${assets.length} 个，来源见 \`assets/README.md\`）`);
-    if (img.length && url) lines.push('', img.slice(0, 6).map((a) => `<img src="${url}${a.replace(/^public\//, '')}" width="120" alt="${a}">`).join(' '));
-    for (const a of [...(url ? [] : img), ...other]) lines.push(`- \`${a}\``);
+    lines.push('', `**这次新做的美术**（${assets.length} 个）`);
+    if (img.length && url) lines.push('', img.slice(0, 6).map((a) => `<img src="${url}${a.replace(/^public\//, '')}" width="120" alt="${a.split('/').pop()}">`).join(' '));
   }
-  lines.push('', `<sub>由 CI 自动更新 · [运行日志](${runUrl}) · ${repo}</sub>`);
+  lines.push(...details([
+    url ? `试玩托管在 ${{ cloudflare: 'Cloudflare Pages', pages: 'GitHub Pages' }[tier]}，提交 \`${sha.slice(0, 7)}\`` : `构建产物与截图在[本次运行](${runUrl})的 Artifacts 里（\`preview-dist\`、\`e2e-shots\`）。开启在线试玩：在仓库 Secrets 设置 \`CLOUDFLARE_API_TOKEN\`（Cloudflare Pages 编辑权限）与 \`CLOUDFLARE_ACCOUNT_ID\`，或把仓库设为公开以使用 GitHub Pages。`,
+    assets.length ? `资产文件（来源见 \`assets/README.md\`）：${assets.map((a) => `\`${a}\``).join('、')}` : null,
+    `[运行日志](${runUrl}) · ${repo}`,
+  ]));
   return lines.join('\n');
 }
 
@@ -121,6 +132,7 @@ if (isMain(import.meta.url)) {
   const slot = isMain ? '' : `pr-${pr}`;
   let url = null;
   let shots = [];
+  let before = [];
 
   if (tier === 'cloudflare') {
     const project = cfProject(repo);
@@ -135,15 +147,20 @@ if (isMain(import.meta.url)) {
     cpSync('dist', stage, { recursive: true });
     const picked = existsSync('tests/shots') ? pickShots(readdirSync('tests/shots')) : [];
     if (picked.length) { mkdirSync(join(stage, '_shots'), { recursive: true }); for (const f of picked) cpSync(join('tests/shots', f), join(stage, '_shots', f)); }
+    // 改前截图：CI 在 main 上跑的 e2e 放在 tests/shots-before/，只取与改后同名的
+    const prevDir = 'tests/shots-before';
+    const prevPicked = existsSync(prevDir) ? picked.filter((f) => existsSync(join(prevDir, f))) : [];
+    if (prevPicked.length) { mkdirSync(join(stage, '_shots', 'before'), { recursive: true }); for (const f of prevPicked) cpSync(join(prevDir, f), join(stage, '_shots', 'before', f)); }
     publishPages(repo, stage, slot, isMain ? `Publish main ${sha.slice(0, 7)}` : `Preview #${pr} at ${sha.slice(0, 7)}`);
     rmSync(stage, { recursive: true, force: true });
     url = pagesUrl(repo, slot ? `${slot}/` : '');
     shots = picked.map((f) => ({ name: f.replace(/\.png$/, ''), url: `${url}_shots/${f}?v=${sha.slice(0, 7)}` }));
+    before = prevPicked.map((f) => ({ name: f.replace(/\.png$/, ''), url: `${url}_shots/before/${f}?v=${sha.slice(0, 7)}` }));
   }
   out('url', url ?? '');
   console.log(`预览：${tier} ${url ?? '（无地址）'}`);
   // PR 里新增或修改的资产文件（public/、assets/ 下的图片与模型）
   let assets = [];
   if (pr) { try { assets = sh('gh', ['pr', 'diff', String(pr), '-R', repo, '--name-only']).split('\n').filter((f) => /^(public|assets)\/.+\.(png|jpe?g|webp|gif|avif|glb|gltf)$/i.test(f) && !f.startsWith('public/lorebook/')); } catch { /* 拿不到 diff 就不列 */ } }
-  if (pr) upsertComment(repo, pr, commentBody({ tier, url, sha, shots, runUrl, repo, lorebook: existsSync('dist/lorebook/index.html'), assets }));
+  if (pr) upsertComment(repo, pr, commentBody({ tier, url, sha, shots, before, runUrl, repo, lorebook: existsSync('dist/lorebook/index.html'), assets }));
 }

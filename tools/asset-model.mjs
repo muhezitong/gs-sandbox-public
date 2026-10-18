@@ -45,7 +45,7 @@ export function buildModelRequest(opts, { root, env }) {
   const model = tripoModel(opts, env);
   // 空字符串当未设置：Actions 里没设的 secrets / vars 注入成空串
   const base = (env.TRIPO_BASE_URL || 'https://openapi.tripo3d.ai').replace(/\/$/, '');
-  const params = { model, ...(opts.prompt ? { prompt: opts.prompt } : {}), ...(opts.seed ? { model_seed: Number(opts.seed) } : {}) };
+  const params = { model, ...(opts.prompt ? { prompt: opts.prompt } : {}), ...(opts.seed ? { model_seed: Number(opts.seed) } : {}), ...(opts['face-limit'] ? { face_limit: Number(opts['face-limit']) } : {}) };
   return {
     rel, model, base, params, image: opts.image ?? null,
     endpoint: `${base}/v3/generation/${opts.image ? 'image-to-model' : 'text-to-model'}`,

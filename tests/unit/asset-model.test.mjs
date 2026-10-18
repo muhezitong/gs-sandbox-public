@@ -136,3 +136,15 @@ test('空字符串的环境变量当作未设置（Actions 里没设的 vars 会
     assert.equal(tripoModel({}, { TRIPO_MODEL: '' }), 'P2-20260801');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('--face-limit 进请求体；参考图可以放在 assets/refs/', async () => {
+  const root = sandbox();
+  try {
+    mkdirSync(join(root, 'assets/refs'), { recursive: true });
+    writeFileSync(join(root, 'assets/refs/crate.png'), Buffer.from('89504e470d0a1a0a', 'hex'));
+    const calls = [];
+    await generateModel({ ...base, image: 'assets/refs/crate.png', 'face-limit': '3000' }, { root, env, fetch: tripo(calls), sleep: noSleep });
+    const submit = calls.find((c) => /image-to-model/.test(c.url));
+    assert.equal(JSON.parse(submit.init.body).face_limit, 3000);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

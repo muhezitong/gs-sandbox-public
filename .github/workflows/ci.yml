@@ -35,6 +35,17 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chrome
       - run: npm run e2e
+      # 改前截图：PR 时在主线上再跑一遍 e2e，放到 tests/shots-before/，预览评论里并排显示改前改后。
+      # 主线版本跑不起来（比如场景是这次新加的）不算失败，只是没有对比
+      - name: 改前截图
+        if: success() && github.event_name != 'push' && github.ref_name != 'main'
+        continue-on-error: true
+        run: |
+          git fetch -q --depth 1 origin main
+          git worktree add -q ../base FETCH_HEAD
+          cd ../base && npm ci --silent && npm run e2e > /dev/null 2>&1 || true
+          mkdir -p "$GITHUB_WORKSPACE/tests/shots-before" && cp tests/shots/*.png "$GITHUB_WORKSPACE/tests/shots-before/" 2>/dev/null || true
+          ls "$GITHUB_WORKSPACE/tests/shots-before" | head
       - if: always()
         uses: actions/upload-artifact@v7
         with:
