@@ -1,4 +1,4 @@
 {
-  "perRun": 6,
-  "milestones": {}
+  "perRun": 3,
+  "milestones": { "迭代 1": 0.1 }
 }
